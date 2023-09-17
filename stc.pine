@@ -1,0 +1,67 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// @version=5
+// Schaff Trend Cycle Indicator
+ 
+
+indicator(title='Schaff Trend Cycle', shorttitle='STC', overlay=false)
+var GRP1 = "Input Parameters"
+var GRP2 = "Over Bought/Sold Zones"
+length = input(10, 'Length',group=GRP1)
+fastLength = input(23, 'Fast Length',group=GRP1)
+slowLength = input(50, 'Slow Length',group=GRP1)
+
+calculateMADiff(src,fastLength, slowLength) =>
+    fastMA = ta.ema(src,fastLength)
+    slowMA = ta.ema(src,slowLength)
+    MADiff = fastMA - slowMA
+    MADiff
+
+calculateSTC(length, fastLength, slowLength) =>
+    smoothingFactor = input(0.5,group=GRP1)
+    var stcPercent = 0.0
+    var stcValue = 0.0
+    var stcPer =0.0
+    var STC= 0.0
+    MADiff = calculateMADiff(close,fastLength,slowLength)
+    lowestSTC = ta.lowest(MADiff, length)
+    highestSTC = ta.highest(MADiff, length) - lowestSTC
+    stcPercent := highestSTC > 0 ? (MADiff - lowestSTC) / highestSTC * 100 : nz(stcPercent[1])
+    stcValue := na(stcValue[1]) ? stcPercent : stcValue[1] + smoothingFactor * (stcPercent - stcValue[1])
+    lowestValue = ta.lowest(stcValue, length)
+    highestValue = ta.highest(stcValue, length) - lowestValue
+    stcPer := highestValue > 0 ? (stcValue - lowestValue) / highestValue * 100 : nz(stcPer[1])
+    STC:= na(STC[1]) ? stcPer: STC[1] + smoothingFactor * (stcPer - STC[1])
+    STC
+
+stcline = calculateSTC(length, fastLength, slowLength)
+stcColor = (stcline > stcline[1] ) ? color.new(#03ec0b, 20) : color.new(#f81b1b, 20)
+
+var float HighClose = na
+var float LowClose=na
+var T=0.0
+var R=0.0
+
+HighClose := T == 0 ? close : ta.highest(close,T)
+LowClose := R == 0 ? close : ta.highest(close,R)
+rg=HighClose-LowClose
+
+divid=100/rg
+stcline2=stcline*divid+LowClose
+
+plot(stcline2, color=stcColor, title='STC', linewidth=2)
+ShowZones=input.bool(true, "Show OverBought/OverSold",   inline = "01",group=GRP2)
+var clrtop=color.new(#1e65ff, 20)
+var clrbot=color.new(#ff2929, 27)
+var fillcolor=color.new(#919cc4, 50)
+
+if (ShowZones==false)
+    clrtop:=color.new(#6645f8, 100)
+    clrbot:=color.new(#ff2929, 100)
+    fillcolor:=color.new(#7d91db, 100)
+    
+LowHL=input(25,"Over Bought",group=GRP2)
+HiHL=input(75,"Over Sold",group=GRP2)
+upperLevel = plot(LowHL, title="OverBought",color=clrbot)
+lowerLevel = plot(HiHL, title="OverSold",color=clrtop)
+fill(upperLevel, lowerLevel,title="Area OverBought/Sell Zone", color=fillcolor)
+
